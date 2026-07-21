@@ -10,27 +10,28 @@ export default function Nav({ activeHub, setActiveHub, profile }) {
   const hubs = [
     { id: 'library', label: 'Technique Library' },
     { id: 'session', label: 'Session Log' },
-    { id: 'game', label: 'Game Hub' },
+    { id: 'game', label: 'Your Game' },
+    { id: 'competitions', label: 'Competitions' },
   ]
 
   return (
     <>
-      <nav style={{
-        background: '#ffffff',
+      <nav className="app-nav" style={{
+        background: 'var(--bg-card)',
         borderBottom: '1px solid var(--border)',
         boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', height: '56px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button className="app-brand" onClick={() => setActiveHub('home')} aria-label="Go to home" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div className="font-display" style={{ fontSize: '18px', color: 'var(--accent)', letterSpacing: '0.08em' }}>
             THE GENTLE ART
           </div>
           <div className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>TRACKER</div>
-        </div>
+        </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="hub-nav" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {hubs.map(hub => (
             <button key={hub.id} onClick={() => setActiveHub(hub.id)} style={{
               color: activeHub === hub.id ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -46,7 +47,7 @@ export default function Nav({ activeHub, setActiveHub, profile }) {
           ))}
         </div>
 
-        <button onClick={() => setProfileOpen(true)} style={{
+        <button className="profile-trigger" onClick={() => setProfileOpen(true)} style={{
           display: 'flex', alignItems: 'center', gap: '8px',
           padding: '6px 12px', borderRadius: '100px',
           background: 'var(--bg-elevated)', border: '1px solid var(--border)',
