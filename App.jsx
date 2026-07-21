@@ -16,7 +16,7 @@ export default function App() {
   return (
     <StoreContext.Provider value={store}>
       <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
-        <Nav activeHub={activeHub} setActiveHub}{setActiveHub} profile={store.profile} />
+        <Nav activeHub={activeHub} setActiveHub={setActiveHub} profile={store.profile} />
         <main className="app-main" style={{ paddingTop: '56px' }}>
           <div className={activeHub === 'home' ? 'app-content app-content-home' : 'app-content'}>
             {activeHub === 'home' && <Home onNavigate={setActiveHub} />}
