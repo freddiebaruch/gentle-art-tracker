@@ -1,8 +1,8 @@
-# 🥋 The Gentle Art Tracker
+# 🥋 Get a Grip
 
-A minimalist, dark-mode Gi Jiu-Jitsu training app for serious practitioners.
+A minimalist, dark-mode Gi Jiu-Jitsu training app for serious practitioners — helping you make better grips and get a grip on your training progress.
 
-Built with React + Vite + Tailwind CSS. There is no server or account to manage: your training data stays in the browser on the device you use.
+Built with React + Vite + Tailwind CSS, with Google sign-in and private cloud saving for your training data.
 
 ---
 
