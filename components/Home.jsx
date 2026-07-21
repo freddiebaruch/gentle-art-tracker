@@ -47,7 +47,7 @@ export default function Home({ onNavigate }) {
     <section className="home-page fade-up">
       <div className="home-hero">
         <div className="home-hero-copy">
-          <p className="home-kicker">THE GENTLE ART TRACKER</p>
+          <p className="home-kicker">GET A GRIP</p>
           <h1 className="home-title">
             Train with<br />
             <em>intention.</em>
