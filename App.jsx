@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import './home.css'
 import { StoreContext } from './store/StoreContext'
 import { useStore } from './store/useStore'
 import Nav from './components/Nav'
