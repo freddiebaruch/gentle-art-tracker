@@ -1,9 +1,9 @@
 import { useState, useContext } from 'react'
-import { X, Plus, Trash2, Trophy, ExternalLink } from 'lucide-react'
+import { X, Plus, Trash2, Trophy, ExternalLink, LogOut } from 'lucide-react'
 import { StoreContext } from '../store/StoreContext'
 import { BELTS, COMPETITION_RESULTS } from '../constants'
 
-export default function ProfilePanel({ onClose }) {
+export default function ProfilePanel({ onClose, user, onSignOut }) {
   const { profile, updateProfile, addCompetition, deleteCompetition } = useContext(StoreContext)
   const [compForm, setCompForm] = useState({ tournament: '', date: '', weightClass: '', result: 'Gold 🥇', notes: '', footage: '' })
   const [showCompForm, setShowCompForm] = useState(false)
@@ -25,7 +25,7 @@ export default function ProfilePanel({ onClose }) {
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(3px)' }} />
       <div style={{
         position: 'relative', width: '380px', height: '100%', overflowY: 'auto',
-        background: '#ffffff', borderLeft: '1px solid var(--border)',
+        background: 'var(--bg-card)', borderLeft: '1px solid var(--border)',
         boxShadow: '-4px 0 24px rgba(0,0,0,0.1)',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '24px' }}>
@@ -36,6 +36,23 @@ export default function ProfilePanel({ onClose }) {
               <X size={20} />
             </button>
           </div>
+
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', marginBottom: '20px', borderRadius: '9px', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" referrerPolicy="no-referrer" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+              ) : (
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-glow)', border: '1px solid var(--accent-dim)' }} />
+              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ overflow: 'hidden', color: 'var(--text-primary)', fontSize: '12px', fontWeight: 500, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.displayName || 'Signed-in practitioner'}</div>
+                <div style={{ overflow: 'hidden', color: 'var(--text-muted)', fontSize: '10px', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+              </div>
+              <button onClick={() => { onClose(); void onSignOut() }} title="Log out" style={{ display: 'grid', placeItems: 'center', padding: '6px', border: 0, borderRadius: '5px', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <LogOut size={16} />
+              </button>
+            </div>
+          )}
 
           {/* Belt Display */}
           <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '20px' }}>
@@ -63,7 +80,7 @@ export default function ProfilePanel({ onClose }) {
                 {[0,1,2,3,4].map(n => (
                   <button key={n} onClick={() => updateProfile({ stripes: n })} style={{
                     width: '22px', height: '22px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px',
-                    background: profile.stripes === n ? 'var(--accent-glow)' : '#ffffff',
+                    background: profile.stripes === n ? 'var(--accent-glow)' : 'var(--bg-card)',
                     border: `1px solid ${profile.stripes === n ? 'var(--accent-dim)' : 'var(--border)'}`,
                     color: profile.stripes === n ? 'var(--accent)' : 'var(--text-muted)',
                     fontFamily: "'DM Mono', monospace",
@@ -139,7 +156,7 @@ export default function ProfilePanel({ onClose }) {
                   }}>Save</button>
                   <button type="button" onClick={() => setShowCompForm(false)} style={{
                     padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px',
-                    background: '#ffffff', border: '1px solid var(--border)', color: 'var(--text-secondary)',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)',
                     fontFamily: "'DM Sans', sans-serif",
                   }}>Cancel</button>
                 </div>
