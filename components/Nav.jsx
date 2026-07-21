@@ -26,9 +26,9 @@ export default function Nav({ activeHub, setActiveHub, profile, user, onSignOut 
       }}>
         <button className="app-brand" onClick={() => setActiveHub('home')} aria-label="Go to home" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div className="font-display" style={{ fontSize: '18px', color: 'var(--accent)', letterSpacing: '0.08em' }}>
-            THE GENTLE ART
+            GET A GRIP
           </div>
-          <div className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>TRACKER</div>
+          <div className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>JIU-JITSU TRAINING</div>
         </button>
 
         <div className="hub-nav" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
