@@ -9,10 +9,10 @@ function PageFrame({ children }) {
     }}>
       <section style={{ width: 'min(100%, 510px)', textAlign: 'center' }}>
         <div className="font-display" style={{ fontSize: '22px', color: 'var(--accent)', letterSpacing: '.08em' }}>
-          THE GENTLE ART
+          GET A GRIP
         </div>
         <div className="font-mono" style={{ marginTop: '3px', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '.12em' }}>
-          TRACKER
+          JIU-JITSU TRAINING
         </div>
         <div style={{
           marginTop: '24px', padding: 'clamp(28px, 6vw, 46px)', border: '1px solid var(--border)',
