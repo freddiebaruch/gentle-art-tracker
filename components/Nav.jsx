@@ -3,7 +3,7 @@ import { User } from 'lucide-react'
 import ProfilePanel from './ProfilePanel'
 import { BELTS } from '../constants'
 
-export default function Nav({ activeHub, setActiveHub, profile }) {
+export default function Nav({ activeHub, setActiveHub, profile, user, onSignOut }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const belt = BELTS.find(b => b.id === profile.belt) || BELTS[0]
 
@@ -63,13 +63,13 @@ export default function Nav({ activeHub, setActiveHub, profile }) {
             {profile.stripes ?? '—'}
           </div>
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: "'DM Sans', sans-serif" }}>
-            {profile.name || 'Profile'}
+            {profile.name || user?.displayName || 'Profile'}
           </span>
           <User size={13} style={{ color: 'var(--text-muted)' }} />
         </button>
       </nav>
 
-      {profileOpen && <ProfilePanel onClose={() => setProfileOpen(false)} />}
+      {profileOpen && <ProfilePanel onClose={() => setProfileOpen(false)} user={user} onSignOut={onSignOut} />}
     </>
   )
 }
