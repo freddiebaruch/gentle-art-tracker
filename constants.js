@@ -13,6 +13,7 @@ export const GRIP_TYPES = ['Sleeve', 'Lapel', 'Pant', 'Belt', 'Collar', 'Wrist',
 
 export const CONNECTION_TYPES = [
   { id: 'attack', label: 'Attack', helper: 'An attack available from this technique' },
+  { id: 'transition', label: 'Transition', helper: 'A change from one position or technique to another' },
   { id: 'follow-up', label: 'Follow-up', helper: 'A natural next step in the sequence' },
   { id: 'counter', label: 'Counter', helper: 'A response to this technique' },
   { id: 'entry', label: 'Entry', helper: 'A route into this technique' },
