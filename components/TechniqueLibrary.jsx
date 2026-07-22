@@ -5,7 +5,39 @@ import { CATEGORIES, CONNECTION_TYPES, GRIP_TYPES, CONFIDENCE_LABELS } from '../
 
 const EMPTY_FORM = {
   name: '', category: 'guard', confidence: 5,
-  grips: [], notes: '', videos: [''], lastTrained: ''
+  grips: [], notes: '', videos: [''], lastTrained: '',
+  playbook: {
+    purpose: '', objective: '', controlChecklist: [], dangerSignals: [], refinements: [], personalCues: '',
+  },
+}
+
+const PLAYBOOK_SECTIONS = [
+  { id: 'controlChecklist', label: 'Control checklist', helper: 'The non-negotiables you should be able to feel and check.', placeholder: 'e.g. Break their posture before attacking' },
+  { id: 'dangerSignals', label: 'Key dangers', helper: 'What tells you the position is slipping or unsafe.', placeholder: 'e.g. Do not let them stand upright' },
+  { id: 'refinements', label: 'Refinements', helper: 'Details to layer in once the basics are reliable.', placeholder: 'e.g. Change angle before chasing the submission' },
+]
+
+function normalisePlaybook(playbook = {}) {
+  const safePlaybook = playbook && typeof playbook === 'object' ? playbook : {}
+  return {
+    ...EMPTY_FORM.playbook,
+    ...safePlaybook,
+    controlChecklist: Array.isArray(safePlaybook.controlChecklist) ? safePlaybook.controlChecklist : [],
+    dangerSignals: Array.isArray(safePlaybook.dangerSignals) ? safePlaybook.dangerSignals : [],
+    refinements: Array.isArray(safePlaybook.refinements) ? safePlaybook.refinements : [],
+  }
+}
+
+function playbookHasContent(playbook) {
+  if (!playbook) return false
+  return Boolean(
+    playbook.purpose?.trim()
+    || playbook.objective?.trim()
+    || playbook.personalCues?.trim()
+    || playbook.controlChecklist?.some(item => item?.trim())
+    || playbook.dangerSignals?.some(item => item?.trim())
+    || playbook.refinements?.some(item => item?.trim()),
+  )
 }
 
 function getCategory(categoryId) {
@@ -53,8 +85,93 @@ function GripTag({ grip, onRemove }) {
   )
 }
 
+function PlaybookListEditor({ section, items, onChange }) {
+  const visibleItems = items.length > 0 ? items : ['']
+
+  function updateItem(index, value) {
+    const nextItems = [...visibleItems]
+    nextItems[index] = value
+    onChange(nextItems)
+  }
+
+  function removeItem(index) {
+    onChange(visibleItems.filter((_, itemIndex) => itemIndex !== index))
+  }
+
+  return (
+    <div className="playbook-list-editor">
+      <div className="playbook-field-heading">
+        <div>
+          <label>{section.label}</label>
+          <p>{section.helper}</p>
+        </div>
+      </div>
+      <div className="playbook-list-inputs">
+        {visibleItems.map((item, index) => (
+          <div key={`${section.id}-${index}`} className="playbook-list-input-row">
+            <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            <input
+              className="input-field"
+              placeholder={section.placeholder}
+              value={item}
+              onChange={event => updateItem(index, event.target.value)}
+            />
+            {(visibleItems.length > 1 || item) && (
+              <button type="button" onClick={() => removeItem(index)} aria-label={`Remove ${section.label.toLowerCase()} item`}><X size={14} /></button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" className="playbook-add-item" onClick={() => onChange([...items, ''])}><Plus size={13} /> Add point</button>
+    </div>
+  )
+}
+
+function PlaybookSection({ label, children }) {
+  return (
+    <section className="technique-playbook-section">
+      <span>{label}</span>
+      {children}
+    </section>
+  )
+}
+
+function TechniquePlaybook({ playbook }) {
+  if (!playbookHasContent(playbook)) return null
+  const safePlaybook = normalisePlaybook(playbook)
+  const listSections = PLAYBOOK_SECTIONS.filter(section => safePlaybook[section.id].some(item => item?.trim()))
+
+  return (
+    <div className="technique-playbook-readonly">
+      <div className="technique-playbook-readonly-heading">
+        <span>Technique playbook</span>
+        <small>Keep this move consistent under pressure.</small>
+      </div>
+      <div className="technique-playbook-readonly-strategy">
+        {safePlaybook.purpose && <PlaybookSection label="Purpose"><p>{safePlaybook.purpose}</p></PlaybookSection>}
+        {safePlaybook.objective && <PlaybookSection label="Main job"><p>{safePlaybook.objective}</p></PlaybookSection>}
+      </div>
+      {listSections.length > 0 && (
+        <div className="technique-playbook-readonly-lists">
+          {listSections.map(section => (
+            <PlaybookSection key={section.id} label={section.label}>
+              <ul>{safePlaybook[section.id].filter(item => item?.trim()).map((item, index) => <li key={`${section.id}-${index}`}>{item}</li>)}</ul>
+            </PlaybookSection>
+          ))}
+        </div>
+      )}
+      {safePlaybook.personalCues && (
+        <div className="technique-playbook-cue-readonly">
+          <span>Personal cue</span>
+          <strong>{safePlaybook.personalCues}</strong>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TechniqueForm({ initial = EMPTY_FORM, onSave, onCancel }) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial })
+  const [form, setForm] = useState({ ...EMPTY_FORM, ...initial, playbook: normalisePlaybook(initial.playbook) })
   const [gripInput, setGripInput] = useState({ type: 'Sleeve', detail: '' })
 
   function addGrip() {
@@ -79,10 +196,28 @@ function TechniqueForm({ initial = EMPTY_FORM, onSave, onCancel }) {
     setForm(f => ({ ...f, videos: f.videos.filter((_, idx) => idx !== i) }))
   }
 
+  function updatePlaybook(field, value) {
+    setForm(current => ({ ...current, playbook: { ...current.playbook, [field]: value } }))
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
-    onSave({ ...form, videos: (form.videos || []).filter(video => video.trim()) })
+    const playbook = normalisePlaybook(form.playbook)
+    onSave({
+      ...form,
+      notes: form.notes.trim(),
+      videos: (form.videos || []).filter(video => video.trim()),
+      playbook: {
+        ...playbook,
+        purpose: playbook.purpose.trim(),
+        objective: playbook.objective.trim(),
+        personalCues: playbook.personalCues.trim(),
+        controlChecklist: playbook.controlChecklist.filter(item => item?.trim()),
+        dangerSignals: playbook.dangerSignals.filter(item => item?.trim()),
+        refinements: playbook.refinements.filter(item => item?.trim()),
+      },
+    })
   }
 
   const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '10px', padding: '20px' }
@@ -139,9 +274,49 @@ function TechniqueForm({ initial = EMPTY_FORM, onSave, onCancel }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: '14px' }}>
-        <label style={label}>Notes & Cues</label>
-        <textarea className="input-field" placeholder="Personal cues, setups, common mistakes..."
+      <section className="technique-playbook-form">
+        <div className="technique-playbook-form-heading">
+          <div>
+            <span>Technique playbook</span>
+            <strong>Keep the important details easy to find.</strong>
+          </div>
+          <p>Pathways such as attacks, entries, and transitions belong in the Network.</p>
+        </div>
+
+        <div className="technique-playbook-strategy">
+          <div>
+            <label>Purpose</label>
+            <p>Why this position or technique matters in your game.</p>
+            <textarea className="input-field" placeholder="e.g. Slow the fight down, control posture, and create reliable attacks."
+              value={form.playbook.purpose} onChange={event => updatePlaybook('purpose', event.target.value)} />
+          </div>
+          <div>
+            <label>Main job / next objective</label>
+            <p>What you are trying to make happen from here.</p>
+            <textarea className="input-field" placeholder="e.g. Break posture, create an angle, and force a reaction."
+              value={form.playbook.objective} onChange={event => updatePlaybook('objective', event.target.value)} />
+          </div>
+        </div>
+
+        <div className="technique-playbook-list-grid">
+          {PLAYBOOK_SECTIONS.map(section => (
+            <PlaybookListEditor key={section.id} section={section} items={form.playbook[section.id]}
+              onChange={items => updatePlaybook(section.id, items)} />
+          ))}
+        </div>
+
+        <div className="technique-playbook-cues">
+          <label>Personal cue</label>
+          <p>A short reminder you want in your head during a round.</p>
+          <input className="input-field" placeholder='e.g. "Control first, then attack."'
+            value={form.playbook.personalCues} onChange={event => updatePlaybook('personalCues', event.target.value)} />
+        </div>
+      </section>
+
+      <div className="legacy-notes-field">
+        <label style={label}>Unsorted notes (optional)</label>
+        <p>Keep older thoughts here temporarily; move the useful ones into the playbook when you are ready.</p>
+        <textarea className="input-field" placeholder="Anything that does not yet fit a playbook section..."
           value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
       </div>
 
@@ -254,6 +429,9 @@ function ConnectionEditor({ source, techniques, onSave, onCancel }) {
 function TechniqueCard({ technique, connectionCount, onConnect, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const category = getCategory(technique.category)
+  const hasPlaybook = playbookHasContent(technique.playbook)
+  const hasVideos = technique.videos?.some(video => video)
+  const hasDetails = hasPlaybook || technique.notes || hasVideos
 
   return (
     <div className="technique-card">
@@ -284,17 +462,23 @@ function TechniqueCard({ technique, connectionCount, onConnect, onEdit, onDelete
         </div>
       )}
 
-      {(technique.notes || technique.videos?.length > 0) && (
+      {hasDetails && (
         <>
           <button onClick={() => setExpanded(!expanded)} className="technique-details-toggle">
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {expanded ? 'Less' : 'Details'}
+            {expanded ? 'Close playbook' : hasPlaybook ? 'Study playbook' : 'Details'}
           </button>
 
           {expanded && (
             <div className="technique-details">
-              {technique.notes && <p>{technique.notes}</p>}
-              {technique.videos?.filter(video => video).map((video, i) => (
+              <TechniquePlaybook playbook={technique.playbook} />
+              {technique.notes && (
+                <div className="technique-legacy-notes">
+                  <span>Unsorted notes</span>
+                  <p>{technique.notes}</p>
+                </div>
+              )}
+              {hasVideos && technique.videos.filter(video => video).map((video, i) => (
                 <a key={i} href={video} target="_blank" rel="noreferrer" className="technique-video-link">
                   <Video size={13} />
                   <span>{video}</span>
