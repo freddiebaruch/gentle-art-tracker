@@ -283,12 +283,52 @@ body {
 .competition-delete { align-self: start; padding: 4px; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; }
 .competition-delete:hover { background: rgba(192, 57, 43, 0.1); color: var(--red); }
 
-.technique-card { transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
+.technique-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+}
+
+.technique-card {
+  padding: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
 .technique-card:hover {
   transform: translateY(-1px);
   border-color: var(--accent-dim) !important;
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
 }
+.technique-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.technique-card-summary { min-width: 0; }
+.technique-card-title { display: flex; align-items: center; gap: 9px; color: var(--text-primary); font-size: 18px; font-weight: 600; line-height: 1.25; }
+.technique-card-icon { display: grid; width: 26px; height: 26px; place-items: center; flex: 0 0 auto; border-radius: 7px; background: var(--accent-glow); font-size: 15px; }
+.technique-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.technique-category { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px; border: 1px solid var(--accent-dim); border-radius: 999px; background: var(--accent-glow); color: var(--accent); font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; }
+.technique-last-trained { color: var(--text-secondary); font-family: 'DM Mono', monospace; font-size: 11px; }
+.technique-card-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.technique-card-actions button { display: grid; width: 30px; height: 30px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.technique-card-actions button:hover, .technique-card-actions button:focus-visible { border-color: var(--border); background: var(--bg-elevated); color: var(--text-primary); outline: none; }
+.technique-card-actions button:last-child:hover, .technique-card-actions button:last-child:focus-visible { color: var(--red); }
+.technique-confidence { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 5px; padding-top: 14px; border-top: 1px solid var(--border); }
+.technique-confidence-copy { display: grid; gap: 2px; min-width: 76px; }
+.technique-confidence-label { color: var(--text-secondary); font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.technique-confidence-level { color: var(--text-primary); font-size: 12px; font-weight: 600; }
+.technique-confidence-track { height: 8px; overflow: hidden; border-radius: 999px; background: var(--bg-elevated); }
+.technique-confidence-fill { height: 100%; border-radius: inherit; transition: width 0.5s; }
+.technique-confidence-score { min-width: 40px; font-family: 'DM Mono', monospace; font-size: 19px; font-weight: 600; line-height: 1; text-align: right; }
+.technique-confidence-score small { margin-left: 1px; color: var(--text-secondary); font-size: 10px; font-weight: 400; }
+.technique-grips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.technique-details-toggle { display: inline-flex; align-items: center; gap: 5px; margin-top: 14px; padding: 4px 0; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; }
+.technique-details-toggle:hover { color: var(--accent); }
+.technique-details { margin-top: 10px; padding-top: 13px; border-top: 1px solid var(--border); }
+.technique-details p { margin: 0 0 10px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.technique-video-link { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; color: var(--accent); font-size: 12px; text-decoration: none; }
+.technique-video-link:hover { text-decoration: underline; }
+.technique-video-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.technique-video-link svg:last-child { flex: 0 0 auto; }
 
 @keyframes pulse-record {
   0%, 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.4); }
