@@ -13,12 +13,18 @@ export const GRIP_TYPES = ['Sleeve', 'Lapel', 'Pant', 'Belt', 'Collar', 'Wrist',
 
 export const CONNECTION_TYPES = [
   { id: 'attack', label: 'Attack', helper: 'An attack available from this technique' },
-  { id: 'sweep', label: 'Sweep', helper: 'A sweep available from this technique' },
   { id: 'follow-up', label: 'Follow-up', helper: 'A natural next step in the sequence' },
   { id: 'counter', label: 'Counter', helper: 'A response to this technique' },
-  { id: 'escape', label: 'Escape', helper: 'A way to get out of this technique' },
   { id: 'entry', label: 'Entry', helper: 'A route into this technique' },
   { id: 'alternative', label: 'Alternative', helper: 'Another option from the same moment' },
+  { id: 'guard', label: 'Guard', helper: 'A guard-based connection' },
+  { id: 'pass', label: 'Pass', helper: 'A passing connection' },
+  { id: 'submission', label: 'Submission', helper: 'A submission available from this technique' },
+  { id: 'back-take', label: 'Back Take', helper: 'A route to the back' },
+  { id: 'sweep', label: 'Sweep', helper: 'A sweep available from this technique' },
+  { id: 'escape', label: 'Escape', helper: 'A way to get out of this technique' },
+  { id: 'takedown', label: 'Takedown', helper: 'A takedown connection' },
+  { id: 'guard-pull', label: 'Guard Pull', helper: 'A route into guard' },
 ]
 
 export const BELTS = [
