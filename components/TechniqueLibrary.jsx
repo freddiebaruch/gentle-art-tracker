@@ -12,11 +12,17 @@ function ConfidenceBar({ value }) {
   const pct = (value / 10) * 100
   const color = value >= 7 ? 'var(--green)' : value >= 4 ? 'var(--accent)' : 'var(--red)'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'var(--border)' }}>
-        <div style={{ width: `${pct}%`, height: '100%', borderRadius: '2px', background: color, transition: 'width 0.5s' }} />
+    <div className="technique-confidence" aria-label={`Confidence: ${value} out of 10, ${CONFIDENCE_LABELS[value]}`}>
+      <div className="technique-confidence-copy">
+        <span className="technique-confidence-label">Confidence</span>
+        <span className="technique-confidence-level">{CONFIDENCE_LABELS[value]}</span>
       </div>
-      <span className="font-mono" style={{ color, fontSize: '12px', fontWeight: '700', minWidth: '16px' }}>{value}</span>
+      <div className="technique-confidence-track" aria-hidden="true">
+        <div className="technique-confidence-fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span className="technique-confidence-score" style={{ color }}>
+        {value}<small>/10</small>
+      </span>
     </div>
   )
 }
@@ -119,7 +125,7 @@ function TechniqueForm({ initial = EMPTY_FORM, onSave, onCancel }) {
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addGrip() } }} />
           <button type="button" onClick={addGrip} style={{
             padding: '8px 12px', borderRadius: '6px', whiteSpace: 'nowrap', cursor: 'pointer',
-            background: '#ffffff', border: '1px solid var(--border)', color: 'var(--text-secondary)',
+            background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)',
             fontFamily: "'DM Sans', sans-serif", fontSize: '12px',
           }}>+ Add</button>
         </div>
@@ -167,7 +173,7 @@ function TechniqueForm({ initial = EMPTY_FORM, onSave, onCancel }) {
         }}>Save Technique</button>
         <button type="button" onClick={onCancel} style={{
           padding: '9px 20px', borderRadius: '8px', cursor: 'pointer',
-          background: '#ffffff', border: '1px solid var(--border)',
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
           color: 'var(--text-secondary)', fontFamily: "'DM Sans', sans-serif", fontSize: '13px',
         }}>Cancel</button>
       </div>
@@ -180,33 +186,30 @@ function TechniqueCard({ technique, onEdit, onDelete }) {
   const cat = CATEGORIES.find(c => c.id === technique.category)
 
   return (
-    <div className="technique-card" style={{
-      background: '#ffffff', border: '1px solid var(--border)',
-      borderRadius: '10px', padding: '14px',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-            <span style={{ fontSize: '14px' }}>{cat?.icon}</span>
-            <span style={{ fontWeight: '500', fontSize: '13px' }}>{technique.name}</span>
+    <div className="technique-card">
+      <div className="technique-card-header">
+        <div className="technique-card-summary">
+          <div className="technique-card-title">
+            <span className="technique-card-icon" aria-hidden="true">{cat?.icon}</span>
+            <span>{technique.name}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="tag-pill">{cat?.label}</span>
+          <div className="technique-card-meta">
+            <span className="technique-category">{cat?.label}</span>
             {technique.lastTrained && (
-              <span className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                {technique.lastTrained}
+              <span className="technique-last-trained">
+                Trained {technique.lastTrained}
               </span>
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div className="technique-card-actions">
           <button onClick={() => onEdit(technique)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}>
-            <Edit3 size={13} />
+            aria-label={`Edit ${technique.name}`}>
+            <Edit3 size={15} />
           </button>
           <button onClick={() => onDelete(technique.id)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}>
-            <Trash2 size={13} />
+            aria-label={`Delete ${technique.name}`}>
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
@@ -214,35 +217,30 @@ function TechniqueCard({ technique, onEdit, onDelete }) {
       <ConfidenceBar value={technique.confidence || 0} />
 
       {technique.grips?.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '10px' }}>
+        <div className="technique-grips">
           {technique.grips.map((g, i) => <GripTag key={i} grip={g} />)}
         </div>
       )}
 
       {(technique.notes || technique.videos?.length > 0) && (
         <>
-          <button onClick={() => setExpanded(!expanded)} style={{
-            display: 'flex', alignItems: 'center', gap: '4px', marginTop: '10px',
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            cursor: 'pointer', fontSize: '11px', fontFamily: "'DM Sans', sans-serif",
-          }}>
-            {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          <button onClick={() => setExpanded(!expanded)} className="technique-details-toggle">
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? 'Less' : 'Details'}
           </button>
 
           {expanded && (
-            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+            <div className="technique-details">
               {technique.notes && (
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 8px' }}>
+                <p>
                   {technique.notes}
                 </p>
               )}
               {technique.videos?.filter(v => v).map((v, i) => (
-                <a key={i} href={v} target="_blank" rel="noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--accent)', marginBottom: '4px', textDecoration: 'none' }}>
-                  <Video size={11} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
-                  <ExternalLink size={9} style={{ flexShrink: 0 }} />
+                <a key={i} href={v} target="_blank" rel="noreferrer" className="technique-video-link">
+                  <Video size={13} />
+                  <span>{v}</span>
+                  <ExternalLink size={11} />
                 </a>
               ))}
             </div>
@@ -362,7 +360,7 @@ export default function TechniqueLibrary() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+        <div className="technique-grid">
           {filtered.map(t => (
             <TechniqueCard key={t.id} technique={t}
               onEdit={t => { setEditingTechnique(t); setShowForm(false) }}
