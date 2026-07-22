@@ -19,6 +19,7 @@ const DEFAULT_PROFILE = {
 const DEFAULT_STATE = {
   profile: DEFAULT_PROFILE,
   techniques: [],
+  connections: [],
   sessions: [],
 }
 
@@ -32,6 +33,7 @@ function normalizeState(value) {
       competitions: Array.isArray(value?.profile?.competitions) ? value.profile.competitions : [],
     },
     techniques: Array.isArray(value?.techniques) ? value.techniques : [],
+    connections: Array.isArray(value?.connections) ? value.connections : [],
     sessions: Array.isArray(value?.sessions) ? value.sessions : [],
   }
 }
@@ -281,7 +283,38 @@ export function useStore() {
   }, [update])
 
   const deleteTechnique = useCallback((id) => {
-    update(previous => ({ ...previous, techniques: previous.techniques.filter(technique => technique.id !== id) }))
+    update(previous => ({
+      ...previous,
+      techniques: previous.techniques.filter(technique => technique.id !== id),
+      connections: previous.connections.filter(connection => connection.fromId !== id && connection.toId !== id),
+    }))
+  }, [update])
+
+  const addConnection = useCallback((connection) => {
+    update(previous => {
+      const alreadyConnected = previous.connections.some(existing => (
+        existing.fromId === connection.fromId
+        && existing.toId === connection.toId
+        && existing.type === connection.type
+      ))
+      if (alreadyConnected || connection.fromId === connection.toId) return previous
+
+      return {
+        ...previous,
+        connections: [...previous.connections, {
+          ...connection,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+        }],
+      }
+    })
+  }, [update])
+
+  const deleteConnection = useCallback((id) => {
+    update(previous => ({
+      ...previous,
+      connections: previous.connections.filter(connection => connection.id !== id),
+    }))
   }, [update])
 
   const addSession = useCallback((session) => {
@@ -340,6 +373,8 @@ export function useStore() {
     addTechnique,
     updateTechnique,
     deleteTechnique,
+    addConnection,
+    deleteConnection,
     addSession,
     updateSession,
     deleteSession,
