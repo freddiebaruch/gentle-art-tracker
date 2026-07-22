@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react'
-import { Plus, Search, ChevronDown, ChevronUp, Trash2, Edit3, ExternalLink, X, Video, Network, LayoutGrid, Link2, ArrowRight } from 'lucide-react'
+import { useState, useContext, useEffect, useMemo, useRef } from 'react'
+import { Plus, Search, ChevronDown, ChevronUp, Trash2, Edit3, ExternalLink, X, Video, Network, LayoutGrid, Link2, ArrowRight, ZoomIn, ZoomOut, Maximize2, RotateCcw, PanelLeftClose, PanelLeftOpen, MousePointer2 } from 'lucide-react'
 import { StoreContext } from '../store/StoreContext'
 import { CATEGORIES, CONNECTION_TYPES, GRIP_TYPES, CONFIDENCE_LABELS } from '../constants'
 
@@ -309,129 +309,398 @@ function TechniqueCard({ technique, connectionCount, onConnect, onEdit, onDelete
   )
 }
 
-function FocusNode({ technique, onFocus, active = false }) {
+const BOARD_WIDTH = 1500
+const BOARD_HEIGHT = 1000
+const BOARD_CENTRE = { x: BOARD_WIDTH / 2, y: BOARD_HEIGHT / 2 }
+const DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 1 }
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function pointAt(angle, distance) {
+  const radians = (angle * Math.PI) / 180
+  return {
+    x: Math.round(BOARD_CENTRE.x + Math.cos(radians) * distance),
+    y: Math.round(BOARD_CENTRE.y + Math.sin(radians) * distance),
+  }
+}
+
+function placeAcrossArc(ids, startAngle, endAngle, distance, positions) {
+  ids.forEach((id, index) => {
+    const ratio = ids.length === 1 ? 0.5 : index / (ids.length - 1)
+    positions[id] = pointAt(startAngle + (endAngle - startAngle) * ratio, distance)
+  })
+}
+
+function createBoardPositions(techniques, connections, focusedId) {
+  const positions = { [focusedId]: BOARD_CENTRE }
+  const incomingOnly = []
+  const outgoingOnly = []
+  const bothWays = []
+  const directIds = new Set()
+
+  techniques.forEach(technique => {
+    if (technique.id === focusedId) return
+    const hasIncoming = connections.some(connection => connection.fromId === technique.id && connection.toId === focusedId)
+    const hasOutgoing = connections.some(connection => connection.fromId === focusedId && connection.toId === technique.id)
+    if (!hasIncoming && !hasOutgoing) return
+    directIds.add(technique.id)
+    if (hasIncoming && hasOutgoing) bothWays.push(technique.id)
+    else if (hasIncoming) incomingOnly.push(technique.id)
+    else outgoingOnly.push(technique.id)
+  })
+
+  placeAcrossArc(incomingOnly, 135, 225, 300, positions)
+  placeAcrossArc(outgoingOnly, -45, 45, 300, positions)
+  placeAcrossArc(bothWays, 70, 110, 300, positions)
+
+  const backgroundIds = techniques
+    .filter(technique => technique.id !== focusedId && !directIds.has(technique.id))
+    .map(technique => technique.id)
+  placeAcrossArc(backgroundIds, 232, 488, 430, positions)
+
+  return positions
+}
+
+function FocusBoardNode({ technique, position, focused, direct, onFocus, onPointerDown }) {
   const category = getCategory(technique.category)
   return (
-    <button type="button" onClick={() => onFocus(technique.id)} className={`network-technique-node ${active ? 'active' : ''}`}>
-      <span className="network-node-icon" aria-hidden="true">{category?.icon}</span>
-      <span className="network-node-copy">
+    <button
+      type="button"
+      className={`focus-board-node ${focused ? 'is-focused' : ''} ${direct ? 'is-direct' : ''} ${!focused && !direct ? 'is-background' : ''}`}
+      style={{ left: `${position.x}px`, top: `${position.y}px` }}
+      onPointerDown={event => onPointerDown(event, technique.id)}
+      onClick={() => onFocus(technique.id)}
+      aria-label={`Focus ${technique.name}`}
+    >
+      <span className="focus-board-node-icon" aria-hidden="true">{category?.icon}</span>
+      <span className="focus-board-node-copy">
         <strong>{technique.name}</strong>
         <small>{category?.label}</small>
       </span>
+      {focused && <span className="focus-board-node-status">Focus</span>}
     </button>
   )
 }
 
-function ConnectionArm({ connection, direction, techniquesById, onFocus }) {
-  const linkedTechnique = techniquesById[direction === 'in' ? connection.fromId : connection.toId]
-  if (!linkedTechnique) return null
+function BoardConnection({ connection, from, to, fromPosition, toPosition, highlighted }) {
+  if (!from || !to || !fromPosition || !toPosition) return null
   const type = getConnectionType(connection.type)
+  const middleX = (fromPosition.x + toPosition.x) / 2
+  const middleY = (fromPosition.y + toPosition.y) / 2
+  const curveOffset = highlighted ? 32 : 18
+  const controlX = middleX + (fromPosition.y - toPosition.y) * 0.1
+  const controlY = middleY + (toPosition.x - fromPosition.x) * 0.1 + curveOffset
+  const relationWidth = Math.max(52, type.label.length * 7 + 20)
 
   return (
-    <div className={`network-arm network-arm-${direction}`}>
-      {direction === 'out' && <span className="network-arm-relation">{type.label}<ArrowRight size={14} /></span>}
-      <FocusNode technique={linkedTechnique} onFocus={onFocus} />
-      {direction === 'in' && <span className="network-arm-relation"><ArrowRight size={14} />{type.label}</span>}
+    <g className={`focus-board-connection ${highlighted ? 'is-highlighted' : ''}`}>
+      <path d={`M ${fromPosition.x} ${fromPosition.y} Q ${controlX} ${controlY} ${toPosition.x} ${toPosition.y}`} markerEnd={highlighted ? 'url(#focus-board-arrow)' : undefined} />
+      {highlighted && (
+        <g transform={`translate(${middleX - relationWidth / 2} ${middleY - 12})`} className="focus-board-connection-label">
+          <rect width={relationWidth} height="24" rx="12" />
+          <text x={relationWidth / 2} y="16" textAnchor="middle">{type.label}</text>
+        </g>
+      )}
+    </g>
+  )
+}
+
+function ConnectionDrawerRow({ connection, techniquesById, onFocus, onDelete }) {
+  const from = techniquesById[connection.fromId]
+  const to = techniquesById[connection.toId]
+  if (!from || !to) return null
+
+  return (
+    <div className="focus-board-drawer-row">
+      <button type="button" onClick={() => onFocus(from.id)}>{from.name}</button>
+      <span>{getConnectionType(connection.type).label}</span>
+      <ArrowRight size={12} aria-hidden="true" />
+      <button type="button" onClick={() => onFocus(to.id)}>{to.name}</button>
+      <button type="button" className="focus-board-remove-link" onClick={() => onDelete(connection.id)} aria-label={`Remove link from ${from.name} to ${to.name}`}><X size={13} /></button>
     </div>
   )
 }
 
-function TechniqueNetwork({ techniques, connections, focusedTechniqueId, onFocus, onStartConnection, onDeleteConnection }) {
-  const [showAll, setShowAll] = useState(false)
-  const focusedTechnique = techniques.find(technique => technique.id === focusedTechniqueId) || techniques[0]
-  const techniquesById = Object.fromEntries(techniques.map(technique => [technique.id, technique]))
-  const incoming = connections.filter(connection => connection.toId === focusedTechnique?.id && techniquesById[connection.fromId])
-  const outgoing = connections.filter(connection => connection.fromId === focusedTechnique?.id && techniquesById[connection.toId])
-  const visibleIncoming = showAll ? incoming : incoming.slice(0, 4)
-  const visibleOutgoing = showAll ? outgoing : outgoing.slice(0, 4)
-  const hiddenCount = Math.max(0, incoming.length - visibleIncoming.length) + Math.max(0, outgoing.length - visibleOutgoing.length)
-  const focusedConnections = [...incoming, ...outgoing]
+function FocusBoardCanvas({ techniques, connections, focusedTechnique, techniquesById, defaultPositions, savedBoard, onFocus, onStartConnection, onDeleteConnection, onSaveLayout, onResetLayout }) {
+  const [drawerOpen, setDrawerOpen] = useState(true)
+  const [nodePositions, setNodePositions] = useState(() => ({ ...defaultPositions, ...(savedBoard?.positions || {}) }))
+  const [viewport, setViewport] = useState(() => ({ ...DEFAULT_VIEWPORT, ...(savedBoard?.viewport || {}) }))
+  const positionsRef = useRef({ ...defaultPositions, ...(savedBoard?.positions || {}) })
+  const viewportRef = useRef({ ...DEFAULT_VIEWPORT, ...(savedBoard?.viewport || {}) })
+  const dragRef = useRef(null)
+  const draggedRef = useRef(false)
+  const saveTimerRef = useRef(null)
+
+  useEffect(() => () => {
+    window.clearTimeout(saveTimerRef.current)
+  }, [])
+
+  if (!focusedTechnique) return null
+
+  const focusedConnections = connections.filter(connection => (
+    (connection.fromId === focusedTechnique.id || connection.toId === focusedTechnique.id)
+    && techniquesById[connection.fromId]
+    && techniquesById[connection.toId]
+  ))
+  const directIds = new Set(focusedConnections.flatMap(connection => [connection.fromId, connection.toId]))
+  const backgroundConnections = connections.filter(connection => (
+    connection.fromId !== focusedTechnique.id
+    && connection.toId !== focusedTechnique.id
+    && techniquesById[connection.fromId]
+    && techniquesById[connection.toId]
+  ))
+  const orderedTechniques = [...techniques].sort((first, second) => {
+    const firstRank = first.id === focusedTechnique.id ? 0 : directIds.has(first.id) ? 1 : 2
+    const secondRank = second.id === focusedTechnique.id ? 0 : directIds.has(second.id) ? 1 : 2
+    return firstRank - secondRank || first.name.localeCompare(second.name)
+  })
+
+  function positionFor(id) {
+    return nodePositions[id] || defaultPositions[id] || BOARD_CENTRE
+  }
+
+  function saveBoard(focusId = focusedTechnique.id) {
+    onSaveLayout(focusId, { positions: positionsRef.current, viewport: viewportRef.current })
+  }
+
+  function scheduleBoardSave() {
+    window.clearTimeout(saveTimerRef.current)
+    const focusId = focusedTechnique.id
+    saveTimerRef.current = window.setTimeout(() => saveBoard(focusId), 350)
+  }
+
+  function setBoardViewport(nextViewport, save = false) {
+    viewportRef.current = nextViewport
+    setViewport(nextViewport)
+    if (save) saveBoard()
+  }
+
+  function changeZoom(amount) {
+    const nextViewport = {
+      ...viewportRef.current,
+      zoom: clamp(Number((viewportRef.current.zoom + amount).toFixed(2)), 0.55, 1.7),
+    }
+    setBoardViewport(nextViewport, true)
+  }
+
+  function handleWheel(event) {
+    event.preventDefault()
+    const amount = event.deltaY > 0 ? -0.08 : 0.08
+    const nextViewport = {
+      ...viewportRef.current,
+      zoom: clamp(Number((viewportRef.current.zoom + amount).toFixed(2)), 0.55, 1.7),
+    }
+    setBoardViewport(nextViewport)
+    scheduleBoardSave()
+  }
+
+  function handleCanvasPointerDown(event) {
+    if (event.button !== 0 || event.target !== event.currentTarget) return
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    draggedRef.current = false
+    dragRef.current = {
+      type: 'canvas',
+      startX: event.clientX,
+      startY: event.clientY,
+      viewport: viewportRef.current,
+    }
+  }
+
+  function handleNodePointerDown(event, techniqueId) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    const position = positionFor(techniqueId)
+    draggedRef.current = {
+      type: 'node',
+      techniqueId,
+      startX: event.clientX,
+      startY: event.clientY,
+      position,
+      zoom: viewportRef.current.zoom,
+    }
+    draggedRef.current.moved = false
+    draggedRef.current.draggedTechniqueId = techniqueId
+  }
+
+  function handlePointerMove(event) {
+    const drag = dragRef.current
+    if (!drag) return
+    const deltaX = event.clientX - drag.startX
+    const deltaY = event.clientY - drag.startY
+    if (Math.hypot(deltaX, deltaY) > 4) {
+      drag.moved = true
+      draggedRef.current = true
+    }
+
+    if (drag.type === 'canvas') {
+      setBoardViewport({ ...drag.viewport, x: drag.viewport.x + deltaX, y: drag.viewport.y + deltaY })
+      return
+    }
+
+    const nextPositions = {
+      ...positionsRef.current,
+      [drag.techniqueId]: {
+        x: clamp(Math.round(drag.position.x + deltaX / drag.zoom), 70, BOARD_WIDTH - 70),
+        y: clamp(Math.round(drag.position.y + deltaY / drag.zoom), 70, BOARD_HEIGHT - 70),
+      },
+    }
+    positionsRef.current = nextPositions
+    setNodePositions(nextPositions)
+  }
+
+  function handlePointerUp() {
+    if (!dragRef.current) return
+    saveBoard()
+    dragRef.current = null
+    window.setTimeout(() => { draggedRef.current = false }, 0)
+  }
+
+  function handleFocus(techniqueId) {
+    if (draggedRef.current) return
+    onFocus(techniqueId)
+  }
+
+  function handleReset() {
+    const nextPositions = defaultPositions
+    positionsRef.current = nextPositions
+    viewportRef.current = DEFAULT_VIEWPORT
+    setNodePositions(nextPositions)
+    setViewport(DEFAULT_VIEWPORT)
+    onResetLayout(focusedTechnique.id)
+  }
 
   return (
-    <section className="network-view" aria-label="Technique network">
+    <section className="network-view focus-board-view" aria-label="Technique network board">
       <div className="network-toolbar">
         <div>
-          <span className="network-kicker">Focus map</span>
-          <h2>Study one decision at a time.</h2>
-          <p>Only direct links are shown, so your network stays useful instead of becoming a maze.</p>
+          <span className="network-kicker">Focus mode</span>
+          <h2>See the choices around one position.</h2>
+          <p>Direct links stay clear; the wider game is kept quietly in the background until you need it.</p>
         </div>
         <div className="network-toolbar-actions">
           <label className="network-focus-select">
             <span>Focus technique</span>
-            <select className="input-field" value={focusedTechnique?.id || ''} onChange={e => { onFocus(e.target.value); setShowAll(false) }}>
+            <select className="input-field" value={focusedTechnique.id} onChange={event => onFocus(event.target.value)}>
               {techniques.map(technique => <option key={technique.id} value={technique.id}>{getCategory(technique.category)?.icon} {technique.name}</option>)}
             </select>
           </label>
           <button type="button" className="network-add-connection" onClick={() => onStartConnection(focusedTechnique)}>
-            <Link2 size={15} /> Add connection
+            <Link2 size={15} /> Add pathway
           </button>
         </div>
       </div>
 
-      <div className="network-map">
-        <div className="network-map-column network-map-incoming">
-          <div className="network-map-label">Into {focusedTechnique.name}</div>
-          {visibleIncoming.length > 0 ? visibleIncoming.map(connection => (
-            <ConnectionArm key={connection.id} connection={connection} direction="in" techniquesById={techniquesById} onFocus={onFocus} />
-          )) : <p className="network-empty-column">No routes into this move yet.</p>}
-        </div>
-
-        <div className="network-map-focus">
-          <span className="network-focus-halo" aria-hidden="true" />
-          <span className="network-focus-label">Your focus</span>
-          <FocusNode technique={focusedTechnique} onFocus={onFocus} active />
-          <span className="network-focus-count">{focusedConnections.length} direct connection{focusedConnections.length !== 1 ? 's' : ''}</span>
-        </div>
-
-        <div className="network-map-column network-map-outgoing">
-          <div className="network-map-label">From {focusedTechnique.name}</div>
-          {visibleOutgoing.length > 0 ? visibleOutgoing.map(connection => (
-            <ConnectionArm key={connection.id} connection={connection} direction="out" techniquesById={techniquesById} onFocus={onFocus} />
-          )) : <p className="network-empty-column">No options linked from this move yet.</p>}
-        </div>
-      </div>
-
-      {hiddenCount > 0 && (
-        <button type="button" className="network-show-more" onClick={() => setShowAll(true)}>Show {hiddenCount} more direct link{hiddenCount !== 1 ? 's' : ''}</button>
-      )}
-      {showAll && (incoming.length > 4 || outgoing.length > 4) && (
-        <button type="button" className="network-show-more" onClick={() => setShowAll(false)}>Show fewer links</button>
-      )}
-
-      <div className="network-register">
-        <div className="network-register-heading">
-          <div>
-            <span className="network-kicker">Link register</span>
-            <h3>Connections around {focusedTechnique.name}</h3>
+      <div className={`focus-board ${drawerOpen ? '' : 'drawer-collapsed'}`}>
+        <aside className="focus-board-drawer" aria-label="Focused pathways">
+          <div className="focus-board-drawer-topline">
+            <span>Pathways</span>
+            <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Hide pathways panel"><PanelLeftClose size={15} /></button>
           </div>
-          <span>{focusedConnections.length}</span>
-        </div>
-        {focusedConnections.length === 0 ? (
-          <p className="network-register-empty">Start with one meaningful connection. You can add another whenever it becomes useful.</p>
-        ) : (
-          <div className="network-register-list">
-            {focusedConnections.map(connection => {
-              const from = techniquesById[connection.fromId]
-              const to = techniquesById[connection.toId]
-              return (
-                <div key={connection.id} className="network-register-row">
-                  <button type="button" onClick={() => onFocus(from.id)}>{from.name}</button>
-                  <span className="network-register-type">{getConnectionType(connection.type).label}</span>
-                  <ArrowRight size={14} aria-hidden="true" />
-                  <button type="button" onClick={() => onFocus(to.id)}>{to.name}</button>
-                  <button type="button" className="network-remove-link" onClick={() => onDeleteConnection(connection.id)} aria-label={`Remove link from ${from.name} to ${to.name}`}><X size={14} /></button>
-                </div>
-              )
-            })}
+          <div className="focus-board-drawer-focus">
+            <span>Studying</span>
+            <strong>{focusedTechnique.name}</strong>
+            <small>{focusedConnections.length} direct link{focusedConnections.length !== 1 ? 's' : ''}</small>
           </div>
-        )}
+          <div className="focus-board-drawer-list">
+            {focusedConnections.length === 0 ? (
+              <p>Start with one meaningful pathway. It will appear here and on the map.</p>
+            ) : focusedConnections.map(connection => (
+              <ConnectionDrawerRow key={connection.id} connection={connection} techniquesById={techniquesById} onFocus={onFocus} onDelete={onDeleteConnection} />
+            ))}
+          </div>
+          <button type="button" className="focus-board-new-pathway" onClick={() => onStartConnection(focusedTechnique)}><Plus size={14} /> New pathway</button>
+        </aside>
+
+        <div
+          className="focus-board-canvas"
+          onWheel={handleWheel}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
+          {!drawerOpen && <button type="button" className="focus-board-open-drawer" onClick={() => setDrawerOpen(true)} aria-label="Show pathways panel"><PanelLeftOpen size={16} /></button>}
+          <div className="focus-board-canvas-copy">
+            <span>Focused study</span>
+            <p><MousePointer2 size={12} /> Drag nodes or canvas · scroll to zoom</p>
+          </div>
+          <div
+            className="focus-board-world"
+            style={{ transform: `translate(calc(-50% + ${viewport.x}px), calc(-50% + ${viewport.y}px)) scale(${viewport.zoom})` }}
+          >
+            <svg className="focus-board-lines" width={BOARD_WIDTH} height={BOARD_HEIGHT} viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`} aria-hidden="true">
+              <defs>
+                <marker id="focus-board-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+                  <path d="M0,0 L0,7 L7,3.5 z" />
+                </marker>
+              </defs>
+              {backgroundConnections.map(connection => (
+                <BoardConnection key={connection.id} connection={connection} from={techniquesById[connection.fromId]} to={techniquesById[connection.toId]} fromPosition={positionFor(connection.fromId)} toPosition={positionFor(connection.toId)} />
+              ))}
+              {focusedConnections.map(connection => (
+                <BoardConnection key={connection.id} connection={connection} from={techniquesById[connection.fromId]} to={techniquesById[connection.toId]} fromPosition={positionFor(connection.fromId)} toPosition={positionFor(connection.toId)} highlighted />
+              ))}
+            </svg>
+            {orderedTechniques.map(technique => (
+              <FocusBoardNode
+                key={technique.id}
+                technique={technique}
+                position={positionFor(technique.id)}
+                focused={technique.id === focusedTechnique.id}
+                direct={directIds.has(technique.id)}
+                onFocus={handleFocus}
+                onPointerDown={handleNodePointerDown}
+              />
+            ))}
+          </div>
+
+          <div className="focus-board-controls" aria-label="Canvas controls">
+            <button type="button" onClick={() => changeZoom(0.1)} aria-label="Zoom in"><ZoomIn size={16} /></button>
+            <span>{Math.round(viewport.zoom * 100)}%</span>
+            <button type="button" onClick={() => changeZoom(-0.1)} aria-label="Zoom out"><ZoomOut size={16} /></button>
+            <button type="button" onClick={() => setBoardViewport(DEFAULT_VIEWPORT, true)} aria-label="Centre map"><Maximize2 size={16} /></button>
+            <button type="button" onClick={handleReset} aria-label="Reset focused map"><RotateCcw size={15} /></button>
+          </div>
+        </div>
       </div>
     </section>
   )
 }
 
+function TechniqueNetwork({ techniques, connections, focusedTechniqueId, networkLayout, onFocus, onStartConnection, onDeleteConnection, onSaveLayout, onResetLayout }) {
+  const focusedTechnique = techniques.find(technique => technique.id === focusedTechniqueId) || techniques[0]
+  const techniquesById = useMemo(() => Object.fromEntries(techniques.map(technique => [technique.id, technique])), [techniques])
+  const defaultPositions = useMemo(
+    () => createBoardPositions(techniques, connections, focusedTechnique?.id),
+    [connections, focusedTechnique?.id, techniques],
+  )
+
+  if (!focusedTechnique) return null
+
+  return (
+    <FocusBoardCanvas
+      key={focusedTechnique.id}
+      techniques={techniques}
+      connections={connections}
+      focusedTechnique={focusedTechnique}
+      techniquesById={techniquesById}
+      defaultPositions={defaultPositions}
+      savedBoard={networkLayout?.boards?.[focusedTechnique.id]}
+      onFocus={onFocus}
+      onStartConnection={onStartConnection}
+      onDeleteConnection={onDeleteConnection}
+      onSaveLayout={onSaveLayout}
+      onResetLayout={onResetLayout}
+    />
+  )
+}
+
 export default function TechniqueLibrary() {
-  const { techniques, connections, addTechnique, updateTechnique, deleteTechnique, addConnection, deleteConnection } = useContext(StoreContext)
+  const { techniques, connections, networkLayout, addTechnique, updateTechnique, deleteTechnique, addConnection, deleteConnection, saveNetworkBoard, resetNetworkBoard } = useContext(StoreContext)
   const [view, setView] = useState('cards')
   const [showForm, setShowForm] = useState(false)
   const [editingTechnique, setEditingTechnique] = useState(null)
@@ -552,8 +821,9 @@ export default function TechniqueLibrary() {
       )}
 
       {view === 'network' && techniques.length > 0 && (
-        <TechniqueNetwork techniques={techniques} connections={connections} focusedTechniqueId={focusedTechniqueId} onFocus={focusTechnique}
-          onStartConnection={technique => setConnectingTechnique(technique)} onDeleteConnection={deleteConnection} />
+        <TechniqueNetwork techniques={techniques} connections={connections} focusedTechniqueId={focusedTechniqueId} networkLayout={networkLayout} onFocus={focusTechnique}
+          onStartConnection={technique => setConnectingTechnique(technique)} onDeleteConnection={deleteConnection}
+          onSaveLayout={saveNetworkBoard} onResetLayout={resetNetworkBoard} />
       )}
 
       {view === 'network' && techniques.length === 0 && (
