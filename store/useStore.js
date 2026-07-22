@@ -20,6 +20,7 @@ const DEFAULT_STATE = {
   profile: DEFAULT_PROFILE,
   techniques: [],
   connections: [],
+  networkLayout: { boards: {} },
   sessions: [],
 }
 
@@ -34,6 +35,11 @@ function normalizeState(value) {
     },
     techniques: Array.isArray(value?.techniques) ? value.techniques : [],
     connections: Array.isArray(value?.connections) ? value.connections : [],
+    networkLayout: {
+      boards: value?.networkLayout?.boards && typeof value.networkLayout.boards === 'object'
+        ? value.networkLayout.boards
+        : {},
+    },
     sessions: Array.isArray(value?.sessions) ? value.sessions : [],
   }
 }
@@ -283,11 +289,23 @@ export function useStore() {
   }, [update])
 
   const deleteTechnique = useCallback((id) => {
-    update(previous => ({
-      ...previous,
-      techniques: previous.techniques.filter(technique => technique.id !== id),
-      connections: previous.connections.filter(connection => connection.fromId !== id && connection.toId !== id),
-    }))
+    update(previous => {
+      const boards = Object.fromEntries(
+        Object.entries(previous.networkLayout?.boards || {})
+          .filter(([focusedId]) => focusedId !== id)
+          .map(([focusedId, board]) => {
+            const positions = { ...(board?.positions || {}) }
+            delete positions[id]
+            return [focusedId, { ...board, positions }]
+          }),
+      )
+      return {
+        ...previous,
+        techniques: previous.techniques.filter(technique => technique.id !== id),
+        connections: previous.connections.filter(connection => connection.fromId !== id && connection.toId !== id),
+        networkLayout: { ...previous.networkLayout, boards },
+      }
+    })
   }, [update])
 
   const addConnection = useCallback((connection) => {
@@ -315,6 +333,35 @@ export function useStore() {
       ...previous,
       connections: previous.connections.filter(connection => connection.id !== id),
     }))
+  }, [update])
+
+  const saveNetworkBoard = useCallback((focusedId, layout) => {
+    if (!focusedId) return
+    update(previous => ({
+      ...previous,
+      networkLayout: {
+        ...previous.networkLayout,
+        boards: {
+          ...(previous.networkLayout?.boards || {}),
+          [focusedId]: {
+            ...(previous.networkLayout?.boards?.[focusedId] || {}),
+            ...layout,
+          },
+        },
+      },
+    }))
+  }, [update])
+
+  const resetNetworkBoard = useCallback((focusedId) => {
+    if (!focusedId) return
+    update(previous => {
+      const boards = { ...(previous.networkLayout?.boards || {}) }
+      delete boards[focusedId]
+      return {
+        ...previous,
+        networkLayout: { ...previous.networkLayout, boards },
+      }
+    })
   }, [update])
 
   const addSession = useCallback((session) => {
@@ -375,6 +422,8 @@ export function useStore() {
     deleteTechnique,
     addConnection,
     deleteConnection,
+    saveNetworkBoard,
+    resetNetworkBoard,
     addSession,
     updateSession,
     deleteSession,
